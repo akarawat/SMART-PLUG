@@ -11,7 +11,7 @@ int IntRst = 15; // Pin D8=15,
 int Outp = 13; // Pin D7=13,
 WiFiClient client;
 
-String ledID = "farmsook1";//5760561,9983908,3161443,4037176,
+String ledID = "homeplug1";//5760561,9983908,3161443,4037176,
 String LEDMsg = "";
 String weatherString;
 int updCnt = 0;
@@ -22,130 +22,67 @@ String date;
 String YY, MM, DD;
 
 #define SECONDS_DS(seconds) ((seconds)*1000000UL)
+
+
+byte server[] = { 27, 254, 172, 48 }; 
+const char* host = "data.sparkfun.com";
+
 void setup(void) {
   delay(100);
   Serial.begin(115200);
   wifiManager.autoConnect("SCS_SMRATPLUG");
   pinMode(IntRst, INPUT);
   pinMode(Outp, OUTPUT);
-
-
-
 }
 
-const char* host = "led.scsthai.com";
 void loop(void) {
-  delay(100);
+  delay(1000);
   int stateBtn = digitalRead(IntRst);
   if (stateBtn == 1) {
     Serial.println("Reset : " + stateBtn);
     wifiManager.resetSettings();
   } else {
-    //digitalWrite(Outp, LOW);
 
-    // Clock Start
-    if (updCnt <= 0) { // ทุก 1 นาทีอัพเดทข้อมูล
-      //updCnt = 10;
-      updCnt = 1;
-      Serial.println("Getting data ...");
-
-      //getWeatherData();
-
-      Serial.print("connecting to ");
-      Serial.println(host);
-
-      // Use WiFiClient class to create TCP connections
-      WiFiClient client;
-      const int httpPort = 80;
-      if (!client.connect(host, httpPort)) {
-        Serial.println("connection failed");
-        return;
-      }
-
-      // We now create a URI for the request
-      String url = "/ledjson_farmsook.php?ledno=" + ledID + "";
-      //url += value;
-
-      Serial.print("Requesting URL: ");
-      Serial.println(url);
-
-      // This will send the request to the server
-      client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-                   "Host: " + host + "\r\n" +
-                   "Connection: close\r\n\r\n");
-      unsigned long timeout = millis();
-      while (client.available() == 0) {
-        if (millis() - timeout > 5000) {
-          Serial.println(">>> Client Timeout !");
-          client.stop();
-          return;
-        }
-      }
-
-      // Read all the lines of the reply from server and print them to Serial
-      String line;
-      while (client.available()) {
-        line = client.readStringUntil('\r');
-        Serial.print(line);
-
-        //char c = client.read();
-        //if (c == '[' || c == ']') c = ' ';
-        //line += c;
-      }
-
-      Serial.println();
-      //line = "{\"ledno\":\"farmsook1\",\"msg\":\"ON\"}";
-      Serial.print("Line:");
-      Serial.println(line);
-
-      DynamicJsonBuffer jsonBuf;
-      JsonObject &root = jsonBuf.parseObject(line);
-      if (!root.success())
-      {
-        Serial.println("parseObject() failed");
-        return;
-      }
-      Serial.println(root["msg"].as<String>());
-      LEDMsg = root["msg"].as<String>();
-      //weatherString = DD + " " + MM + " " + YY + " ";
-
-      weatherString = LEDMsg;
-      Serial.println(weatherString);
-      Serial.println("closing connection");
-
-
-      if (weatherString == "ON") { //On เป็น LOW เพราะ ใช้ Solid Active Low
-        digitalWrite(Outp, LOW);
-      }
-      if (weatherString == "OFF") {
-        digitalWrite(Outp, HIGH);
-      }
-      //getDate();
-      //getData();
-      Serial.println("Data loaded");
-      //clkTime = millis();
-      //Serial.println("Sleeping");
-      //ESP.deepSleep(SECONDS_DS(5));
-      //Serial.println("Wakeup");
-
+    // Use WiFiClient class to create TCP connections
+    WiFiClient client;
+    const int httpPort = 80;
+    if (!client.connect(host, httpPort)) {
+      Serial.println("connection failed");
+      return;
     }
 
-    /*
-      if (millis() - clkTime > 1500 && dots) { //ทุก 15 วินาทีแสดงสภาพอากาศ
-      String txtShow;
-      txtShow = weatherString;
-      //ScrollText(txtShow);
-      Serial.println("15 SEC : " + txtShow);
-      updCnt--;
-      clkTime = millis();
-      }
-    */
+    // We now create a URI for the request
+    String url = "/input/";
+    url += streamId;
+    url += "?private_key=";
+    url += privateKey;
+    url += "&value=";
+    url += value;
 
-    if (millis() - dotTime > 5000) { // ความถี่การอัพเดท
-      dotTime = millis();
-      dots = !dots;
-      updCnt--;
+    Serial.print("Requesting URL: ");
+    Serial.println(url);
+
+    // This will send the request to the server
+    client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+                 "Host: " + host + "\r\n" +
+                 "Connection: close\r\n\r\n");
+    unsigned long timeout = millis();
+    while (client.available() == 0) {
+      if (millis() - timeout > 5000) {
+        Serial.println(">>> Client Timeout !");
+        client.stop();
+        return;
+      }
     }
+
+    // Read all the lines of the reply from server and print them to Serial
+    while (client.available()) {
+      String line = client.readStringUntil('\r');
+      Serial.print(line);
+    }
+
+    Serial.println();
+    Serial.println("closing connection");
 
   }
 }
@@ -153,7 +90,7 @@ void loop(void) {
 /// === ดึงข้อมูล === ///
 
 //const char *weatherHost = "api.openweathermap.org";
-const char *weatherHost = "led.scsthai.com";
+const char *weatherHost = "www.scsthai.com";
 //http://27.254.172.48/plesk-site-preview/led.scsthai.com/ledjson.php?ledno=9983908
 //ต้องเข้าผ่านไอพีเท่านั้น เว็ย scs โฮสท์มันไม่ให้ใช้ IP
 void getWeatherData()
@@ -161,7 +98,7 @@ void getWeatherData()
   //led.scsthai.com/ledjson.php?ledno=3161443
   Serial.print("connecting to "); Serial.println(weatherHost);
   if (client.connect(weatherHost, 80)) {
-    client.println(String("GET /ledjson.php?ledno=") + ledID + "\r\n" +
+    client.println(String("GET /plesk-site-preview/led.scsthai.com/ledjson.php?ledno=") + ledID + "\r\n" +
                    "Host: " + weatherHost + "\r\nUser-Agent: ArduinoWiFi/1.1\r\n" +
                    "Connection: close\r\n\r\n");
   } else {
